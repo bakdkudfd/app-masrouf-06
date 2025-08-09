@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,32 @@ import {
   Dimensions,
   StatusBar,
   Alert,
+  RefreshControl,
+  Animated,
 } from 'react-native';
-import { PieChart } from 'react-native-chart-kit';
-import { CreditCard as Edit3, TrendingUp, TrendingDown, DollarSign, Calendar, Plus, ChartBar as BarChart3, Target } from 'lucide-react-native';
+import { PieChart, LineChart } from 'react-native-chart-kit';
+import { 
+  CreditCard as Edit3, 
+  TrendingUp, 
+  TrendingDown, 
+  DollarSign, 
+  Calendar, 
+  Plus, 
+  ChartBar as BarChart3, 
+  Target,
+  Eye,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Wallet,
+  PiggyBank,
+  Activity
+} from 'lucide-react-native';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { CircularProgress } from '@/components/CircularProgress';
 
 const { width } = Dimensions.get('window');
 
@@ -32,6 +52,11 @@ interface UserData {
   salaryDate: string;
 }
 
+interface DailySpending {
+  date: string;
+  amount: number;
+}
+
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -44,52 +69,134 @@ export default function HomeScreen() {
   });
 
   const [financialTip, setFinancialTip] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [fadeAnim] = useState(new Animated.Value(1));
+  const [isFirstTime, setIsFirstTime] = useState(false);
 
   const colors = {
     primary: '#4CAF50',
     secondary: '#2196F3',
     accent: '#FF9800',
     danger: '#F44336',
+    warning: '#FFC107',
+    success: '#8BC34A',
     background: isDark ? '#1A1A1A' : '#F8F9FA',
     card: isDark ? '#2D2D2D' : '#FFFFFF',
     text: isDark ? '#FFFFFF' : '#333333',
     textSecondary: isDark ? '#B0B0B0' : '#666666',
     border: isDark ? '#404040' : '#E0E0E0',
+    gradient1: isDark ? '#2D2D2D' : '#FFFFFF',
+    gradient2: isDark ? '#1A1A1A' : '#F8F9FA',
   };
 
   const financialTips = [
-    'قلل من شراء القهوة اليومية واشرب في البيت',
-    'خطط لمصاريفك قبل بداية كل أسبوع',
-    'احتفظ بـ 10% من راتبك كادخار شهري',
-    'تسوق بقائمة محددة لتجنب الشراء العشوائي',
-    'قارن الأسعار قبل شراء أي شيء مكلف',
-    'استخدم التطبيقات المجانية بدلاً من المدفوعة',
+    'قلل من شراء القهوة اليومية واشرب في البيت - توفر حتى 3000 د.ج شهرياً',
+    'خطط لمصاريفك قبل بداية كل أسبوع لتجنب الإنفاق العشوائي',
+    'احتفظ بـ 20% من راتبك كادخار شهري لبناء صندوق الطوارئ',
+    'تسوق بقائمة محددة لتجنب الشراء العشوائي وتوفير 15% من مصاريف التسوق',
+    'قارن الأسعار قبل شراء أي شيء مكلف - استخدم تطبيقات المقارنة',
+    'استخدم التطبيقات المجانية بدلاً من المدفوعة كلما أمكن',
+    'اطبخ في البيت 4 أيام في الأسبوع لتوفير 40% من مصاريف الطعام',
+    'استخدم وسائل النقل العامة بدلاً من التاكسي لتوفير 60% من مصاريف النقل',
+    'اشترِ الأشياء المستعملة بحالة جيدة لتوفير حتى 50% من السعر الأصلي',
+    'تجنب التسوق عندما تكون متوتراً أو حزيناً - 70% من القرارات المالية السيئة تحدث في هذه الأوقات',
   ];
 
+  // استخدام useFocusEffect لتحديث البيانات عند العودة للصفحة
+  useFocusEffect(
+    useCallback(() => {
+      loadUserData();
+    }, [])
+  );
+
   useEffect(() => {
-    loadUserData();
+    checkFirstTime();
     setRandomTip();
   }, []);
+
+  const checkFirstTime = async () => {
+    try {
+      const data = await AsyncStorage.getItem('userData');
+      if (!data) {
+        setIsFirstTime(true);
+      }
+    } catch (error) {
+      console.error('Error checking first time:', error);
+    }
+  };
 
   const loadUserData = async () => {
     try {
       const data = await AsyncStorage.getItem('userData');
       if (data) {
-        setUserData(JSON.parse(data));
+        const parsedData = JSON.parse(data);
+        setUserData(parsedData);
+        setIsFirstTime(false);
+      } else {
+        setIsFirstTime(true);
       }
     } catch (error) {
       console.error('Error loading user data:', error);
     }
   };
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadUserData();
+    setRandomTip();
+    
+    // إضافة تأثير بصري للتحديث
+    Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 0.7, duration: 200, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+    ]).start();
+    
+    setRefreshing(false);
+  }, [fadeAnim]);
+
   const setRandomTip = () => {
     const randomIndex = Math.floor(Math.random() * financialTips.length);
     setFinancialTip(financialTips[randomIndex]);
   };
 
+  // حسابات مالية متقدمة
   const totalExpenses = userData.monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
   const remainingBalance = userData.salary - totalExpenses;
   const spendingPercentage = userData.salary > 0 ? (totalExpenses / userData.salary) * 100 : 0;
+  
+  // حساب متوسط الإنفاق اليومي
+  const today = new Date();
+  const daysPassed = today.getDate();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const daysRemaining = daysInMonth - daysPassed;
+  const dailyAverage = daysPassed > 0 ? totalExpenses / daysPassed : 0;
+  const projectedMonthlySpend = dailyAverage * daysInMonth;
+  
+  // حساب معدل الادخار
+  const savingsRate = userData.salary > 0 ? ((userData.salary - totalExpenses) / userData.salary) * 100 : 0;
+  
+  // تحليل الإنفاق الأسبوعي
+  const getWeeklySpending = (): DailySpending[] => {
+    const weeklyData: Record<string, number> = {};
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      const dayKey = date.toISOString().split('T')[0];
+      weeklyData[dayKey] = 0;
+    }
+
+    userData.monthlyExpenses.forEach(expense => {
+      const expenseDate = expense.date.split('T')[0];
+      if (weeklyData.hasOwnProperty(expenseDate)) {
+        weeklyData[expenseDate] += expense.amount;
+      }
+    });
+
+    return Object.entries(weeklyData).map(([date, amount]) => ({
+      date,
+      amount,
+    }));
+  };
 
   const getCategoryTotals = () => {
     const categories = userData.monthlyExpenses.reduce((acc, expense) => {
@@ -102,8 +209,8 @@ export default function HomeScreen() {
       amount,
       color: getCategoryColor(category),
       legendFontColor: colors.text,
-      legendFontSize: 12,
-    }));
+      legendFontSize: 11,
+    })).sort((a, b) => b.amount - a.amount);
   };
 
   const getCategoryArabicName = (category: string) => {
@@ -112,6 +219,9 @@ export default function HomeScreen() {
       transport: 'نقل',
       bills: 'فواتير',
       entertainment: 'ترفيه',
+      health: 'صحة',
+      shopping: 'تسوق',
+      education: 'تعليم',
       other: 'أخرى',
     };
     return categoryNames[category] || category;
@@ -123,9 +233,24 @@ export default function HomeScreen() {
       transport: '#4ECDC4',
       bills: '#45B7D1',
       entertainment: '#96CEB4',
+      health: '#FF8A65',
+      shopping: '#BA68C8',
+      education: '#FFB74D',
       other: '#FFEAA7',
     };
     return categoryColors[category] || '#DDD';
+  };
+
+  const getFinancialStatus = () => {
+    if (spendingPercentage >= 100) return { status: 'danger', message: 'تجاوزت ميزانيتك!', icon: AlertTriangle };
+    if (spendingPercentage >= 80) return { status: 'warning', message: 'اقتربت من حد الميزانية', icon: Clock };
+    if (spendingPercentage >= 60) return { status: 'caution', message: 'إنفاق متوسط', icon: Activity };
+    return { status: 'good', message: 'إنفاق صحي', icon: CheckCircle };
+  };
+
+  const getTopSpendingCategory = () => {
+    const categoryTotals = getCategoryTotals();
+    return categoryTotals.length > 0 ? categoryTotals[0] : null;
   };
 
   const handleEditSalary = () => {
@@ -140,98 +265,334 @@ export default function HomeScreen() {
     router.push('/budget-planner');
   };
 
+  const handleAddExpense = () => {
+    router.push('/add-expense');
+  };
+
   const chartData = getCategoryTotals();
+  const weeklyData = getWeeklySpending();
+  const financialStatus = getFinancialStatus();
+  const topCategory = getTopSpendingCategory();
+
+  // إذا كانت المرة الأولى، عرض شاشة الترحيب
+  if (isFirstTime) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        
+        <View style={styles.welcomeContainer}>
+          <View style={[styles.welcomeCard, { backgroundColor: colors.card }]}>
+            <Wallet size={80} color={colors.primary} />
+            <Text style={[styles.welcomeTitle, { color: colors.text }]}>
+              أهلاً بك في مصروفي! 🎉
+            </Text>
+            <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>
+              تطبيقك الذكي لإدارة المصاريف الشخصية
+            </Text>
+            <Text style={[styles.welcomeDescription, { color: colors.textSecondary }]}>
+              ابدأ بإعداد راتبك الشهري لنتمكن من مساعدتك في تتبع مصاريفك وتحقيق أهدافك المالية
+            </Text>
+            
+            <TouchableOpacity
+              style={[styles.setupButton, { backgroundColor: colors.primary }]}
+              onPress={handleEditSalary}
+            >
+              <DollarSign size={24} color="white" />
+              <Text style={styles.setupButtonText}>إعداد الراتب الشهري</Text>
+            </TouchableOpacity>
+
+            <View style={[styles.featuresContainer, { backgroundColor: colors.background }]}>
+              <Text style={[styles.featuresTitle, { color: colors.text }]}>ما يمكنك فعله:</Text>
+              <View style={styles.featureItem}>
+                <Plus size={16} color={colors.primary} />
+                <Text style={[styles.featureText, { color: colors.textSecondary }]}>
+                  تسجيل المصاريف اليومية بسهولة
+                </Text>
+              </View>
+              <View style={styles.featureItem}>
+                <BarChart3 size={16} color={colors.secondary} />
+                <Text style={[styles.featureText, { color: colors.textSecondary }]}>
+                  مراجعة تقارير مفصلة عن إنفاقك
+                </Text>
+              </View>
+              <View style={styles.featureItem}>
+                <Target size={16} color={colors.accent} />
+                <Text style={[styles.featureText, { color: colors.textSecondary }]}>
+                  وضع أهداف مالية وتتبع تقدمك
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  const chartConfig = {
+    backgroundColor: colors.card,
+    backgroundGradientFrom: colors.card,
+    backgroundGradientTo: colors.card,
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
+    labelColor: (opacity = 1) => colors.text,
+    style: { borderRadius: 16 },
+    propsForLabels: { fontSize: 10 },
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
+      >
         {/* Header */}
-        <View style={[styles.header, { backgroundColor: colors.card }]}>
-          <Text style={[styles.appTitle, { color: colors.text }]}>مصروفي</Text>
-          <TouchableOpacity onPress={handleEditSalary}>
-            <Edit3 size={24} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Financial Overview */}
-        <View style={[styles.overviewCard, { backgroundColor: colors.card }]}>
-          <View style={styles.overviewRow}>
-            <View style={styles.overviewItem}>
-              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>راتبك الحالي</Text>
-              <Text style={[styles.overviewAmount, { color: colors.primary }]}>
-                {userData.salary.toLocaleString()} د.ج
+        <Animated.View style={[styles.header, { backgroundColor: colors.card, opacity: fadeAnim }]}>
+          <View style={styles.headerContent}>
+            <View>
+              <Text style={[styles.appTitle, { color: colors.text }]}>مصروفي</Text>
+              <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+                {new Date().toLocaleDateString('ar-DZ', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
               </Text>
             </View>
-            <DollarSign size={32} color={colors.primary} />
+            <TouchableOpacity 
+              style={[styles.editButton, { backgroundColor: colors.primary }]}
+              onPress={handleEditSalary}
+            >
+              <Edit3 size={20} color="white" />
+            </TouchableOpacity>
           </View>
-          
-          <View style={styles.overviewRow}>
-            <View style={styles.overviewItem}>
-              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>إجمالي المصاريف الشهرية</Text>
-              <Text style={[styles.overviewAmount, { color: colors.danger }]}>
-                {totalExpenses.toLocaleString()} د.ج
-              </Text>
-            </View>
-            <TrendingUp size={32} color={colors.danger} />
+        </Animated.View>
+
+        {/* Financial Status Card */}
+        <Animated.View style={[styles.statusCard, { backgroundColor: colors.card, opacity: fadeAnim }]}>
+          <View style={styles.statusHeader}>
+            <financialStatus.icon size={24} color={
+              financialStatus.status === 'danger' ? colors.danger :
+              financialStatus.status === 'warning' ? colors.warning :
+              financialStatus.status === 'caution' ? colors.accent : colors.success
+            } />
+            <Text style={[styles.statusMessage, { 
+              color: financialStatus.status === 'danger' ? colors.danger :
+                     financialStatus.status === 'warning' ? colors.warning :
+                     financialStatus.status === 'caution' ? colors.accent : colors.success
+            }]}>
+              {financialStatus.message}
+            </Text>
           </View>
 
-          <View style={styles.overviewRow}>
-            <View style={styles.overviewItem}>
-              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>المبلغ المتبقي</Text>
-              <Text style={[styles.overviewAmount, { 
-                color: remainingBalance >= 0 ? colors.primary : colors.danger 
-              }]}>
-                {remainingBalance.toLocaleString()} د.ج
-              </Text>
-            </View>
-            {remainingBalance >= 0 ? 
-              <TrendingUp size={32} color={colors.primary} /> : 
-              <TrendingDown size={32} color={colors.danger} />
-            }
-          </View>
-        </View>
+          <View style={styles.progressContainer}>
+            <CircularProgress
+              size={100}
+              width={8}
+              fill={Math.min(spendingPercentage, 100)}
+              tintColor={
+                spendingPercentage >= 100 ? colors.danger :
+                spendingPercentage >= 80 ? colors.warning :
+                spendingPercentage >= 60 ? colors.accent : colors.primary
+              }
+              backgroundColor={colors.border}
+            >
+              {() => (
+                <View style={styles.progressCenter}>
+                  <Text style={[styles.progressPercentage, { color: colors.text }]}>
+                    {spendingPercentage.toFixed(0)}%
+                  </Text>
+                  <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
+                    مُستخدم
+                  </Text>
+                </View>
+              )}
+            </CircularProgress>
 
-        {/* Spending Chart */}
-        {chartData.length > 0 && (
-          <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>توزيع المصاريف</Text>
-            <PieChart
-              data={chartData}
-              width={width - 60}
-              height={200}
-              chartConfig={{
-                backgroundColor: colors.card,
-                backgroundGradientFrom: colors.card,
-                backgroundGradientTo: colors.card,
-                color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
+            <View style={styles.statusDetails}>
+              <View style={styles.statusRow}>
+                <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>الراتب الشهري:</Text>
+                <Text style={[styles.statusValue, { color: colors.primary }]}>
+                  {userData.salary.toLocaleString()} د.ج
+                </Text>
+              </View>
+              <View style={styles.statusRow}>
+                <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>المُنفق:</Text>
+                <Text style={[styles.statusValue, { color: colors.danger }]}>
+                  {totalExpenses.toLocaleString()} د.ج
+                </Text>
+              </View>
+              <View style={styles.statusRow}>
+                <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>المتبقي:</Text>
+                <Text style={[styles.statusValue, { 
+                  color: remainingBalance >= 0 ? colors.success : colors.danger 
+                }]}>
+                  {remainingBalance.toLocaleString()} د.ج
+                </Text>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Quick Stats */}
+        <Animated.View style={[styles.quickStatsContainer, { opacity: fadeAnim }]}>
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <Calendar size={20} color={colors.secondary} />
+            <Text style={[styles.statValue, { color: colors.text }]}>
+              {dailyAverage.toFixed(0)} د.ج
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              متوسط يومي
+            </Text>
+          </View>
+
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <PiggyBank size={20} color={colors.success} />
+            <Text style={[styles.statValue, { color: colors.text }]}>
+              {savingsRate.toFixed(0)}%
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              معدل الادخار
+            </Text>
+          </View>
+
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <Clock size={20} color={colors.accent} />
+            <Text style={[styles.statValue, { color: colors.text }]}>
+              {daysRemaining}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              يوم متبقي
+            </Text>
+          </View>
+        </Animated.View>
+
+        {/* Weekly Spending Trend */}
+        {weeklyData.length > 0 && weeklyData.some(day => day.amount > 0) && (
+          <Animated.View style={[styles.chartCard, { backgroundColor: colors.card, opacity: fadeAnim }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>اتجاه الإنفاق الأسبوعي</Text>
+            <LineChart
+              data={{
+                labels: weeklyData.map((_, index) => {
+                  const date = new Date(today.getTime() - (6 - index) * 24 * 60 * 60 * 1000);
+                  return date.toLocaleDateString('ar', { weekday: 'short' });
+                }),
+                datasets: [{
+                  data: weeklyData.map(item => item.amount),
+                  color: (opacity = 1) => colors.primary,
+                  strokeWidth: 3,
+                }],
               }}
+              width={width - 60}
+              height={180}
+              chartConfig={chartConfig}
+              style={styles.chart}
+              bezier
+              withDots={true}
+              withInnerLines={false}
+              withOuterLines={false}
+              withVerticalLabels={true}
+              withHorizontalLabels={true}
+            />
+          </Animated.View>
+        )}
+
+        {/* Category Breakdown */}
+        {chartData.length > 0 && (
+          <Animated.View style={[styles.chartCard, { backgroundColor: colors.card, opacity: fadeAnim }]}>
+            <View style={styles.chartHeader}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>توزيع المصاريف</Text>
+              <TouchableOpacity onPress={() => router.push('/analytics')}>
+                <Text style={[styles.viewMoreText, { color: colors.primary }]}>عرض التفاصيل</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <PieChart
+              data={chartData.slice(0, 5)} // عرض أهم 5 فئات فقط
+              width={width - 60}
+              height={180}
+              chartConfig={chartConfig}
               accessor="amount"
               backgroundColor="transparent"
               paddingLeft="15"
               center={[10, 0]}
               absolute
             />
-          </View>
+
+            {topCategory && (
+              <View style={[styles.topCategoryBadge, { backgroundColor: colors.primary + '20' }]}>
+                <Text style={[styles.topCategoryText, { color: colors.primary }]}>
+                  أكثر فئة إنفاقاً: {topCategory.name} ({((topCategory.amount / totalExpenses) * 100).toFixed(0)}%)
+                </Text>
+              </View>
+            )}
+          </Animated.View>
         )}
 
+        {/* Financial Insights */}
+        <Animated.View style={[styles.insightsCard, { backgroundColor: colors.card, opacity: fadeAnim }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>رؤى مالية ذكية</Text>
+          
+          <View style={styles.insightItem}>
+            <Activity size={18} color={colors.secondary} />
+            <Text style={[styles.insightText, { color: colors.text }]}>
+              بمعدل إنفاقك الحالي، ستنفق {projectedMonthlySpend.toFixed(0)} د.ج هذا الشهر
+            </Text>
+          </View>
+
+          {projectedMonthlySpend > userData.salary && (
+            <View style={styles.insightItem}>
+              <AlertTriangle size={18} color={colors.danger} />
+              <Text style={[styles.insightText, { color: colors.danger }]}>
+                تحذير: قد تتجاوز راتبك بـ {(projectedMonthlySpend - userData.salary).toFixed(0)} د.ج
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.insightItem}>
+            <PiggyBank size={18} color={colors.success} />
+            <Text style={[styles.insightText, { color: colors.text }]}>
+              يمكنك ادخار {(remainingBalance / daysRemaining).toFixed(0)} د.ج يومياً من المبلغ المتبقي
+            </Text>
+          </View>
+
+          {userData.monthlyExpenses.length >= 5 && (
+            <View style={styles.insightItem}>
+              <CheckCircle size={18} color={colors.primary} />
+              <Text style={[styles.insightText, { color: colors.text }]}>
+                ممتاز! لديك {userData.monthlyExpenses.length} مصروف مسجل هذا الشهر
+              </Text>
+            </View>
+          )}
+        </Animated.View>
+
         {/* Financial Tip */}
-        <View style={[styles.tipCard, { backgroundColor: colors.primary }]}>
-          <Text style={styles.tipTitle}>💡 نصيحة مالية</Text>
+        <Animated.View style={[styles.tipCard, { backgroundColor: colors.primary, opacity: fadeAnim }]}>
+          <Text style={styles.tipTitle}>💡 نصيحة مالية ذكية</Text>
           <Text style={styles.tipText}>{financialTip}</Text>
           <TouchableOpacity onPress={setRandomTip} style={styles.refreshTip}>
             <Text style={styles.refreshTipText}>نصيحة جديدة</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* Quick Actions */}
-        <View style={[styles.actionsCard, { backgroundColor: colors.card }]}>
+        <Animated.View style={[styles.actionsCard, { backgroundColor: colors.card, opacity: fadeAnim }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>إجراءات سريعة</Text>
-          <View style={styles.actionsRow}>
+          
+          <View style={styles.actionsGrid}>
             <TouchableOpacity 
               style={[styles.actionButton, { backgroundColor: colors.primary }]}
-              onPress={() => router.push('/add-expense')}
+              onPress={handleAddExpense}
             >
               <Plus size={24} color="white" />
               <Text style={styles.actionButtonText}>إضافة مصروف</Text>
@@ -241,18 +602,18 @@ export default function HomeScreen() {
               style={[styles.actionButton, { backgroundColor: colors.secondary }]}
               onPress={handleViewAllExpenses}
             >
-              <BarChart3 size={24} color="white" />
-              <Text style={styles.actionButtonText}>قائمة المصاريف</Text>
+              <Eye size={24} color="white" />
+              <Text style={styles.actionButtonText}>عرض المصاريف</Text>
             </TouchableOpacity>
           </View>
           
-          <View style={[styles.actionsRow, { marginTop: 10 }]}>
+          <View style={styles.actionsGrid}>
             <TouchableOpacity 
               style={[styles.actionButton, { backgroundColor: colors.accent }]}
-              onPress={handleBudgetPlanner}
+              onPress={() => router.push('/goals')}
             >
               <Target size={24} color="white" />
-              <Text style={styles.actionButtonText}>مخطط الميزانية</Text>
+              <Text style={styles.actionButtonText}>الأهداف المالية</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -260,30 +621,93 @@ export default function HomeScreen() {
               onPress={() => router.push('/analytics')}
             >
               <BarChart3 size={24} color="white" />
-              <Text style={styles.actionButtonText}>التقارير</Text>
+              <Text style={styles.actionButtonText}>التقارير التفصيلية</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
 
-        {/* Budget Status */}
-        <View style={[styles.budgetCard, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>حالة الميزانية</Text>
-          <View style={styles.budgetProgress}>
-            <View 
-              style={[
-                styles.budgetBar, 
-                { 
-                  width: `${Math.min(spendingPercentage, 100)}%`,
-                  backgroundColor: spendingPercentage > 80 ? colors.danger : colors.primary
-                }
-              ]} 
-            />
-          </View>
-          <Text style={[styles.budgetText, { color: colors.textSecondary }]}>
-            لقد أنفقت {spendingPercentage.toFixed(1)}% من راتبك هذا الشهر
+        {/* Recent Expenses Preview */}
+        {userData.monthlyExpenses.length > 0 && (
+          <Animated.View style={[styles.recentExpensesCard, { backgroundColor: colors.card, opacity: fadeAnim }]}>
+            <View style={styles.recentHeader}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>آخر المصاريف</Text>
+              <TouchableOpacity onPress={handleViewAllExpenses}>
+                <Text style={[styles.viewAllText, { color: colors.primary }]}>عرض الكل</Text>
+              </TouchableOpacity>
+            </View>
+
+            {userData.monthlyExpenses.slice(-3).reverse().map((expense) => {
+              const categoryInfo = {
+                food: { name: 'طعام', emoji: '🍔' },
+                transport: { name: 'نقل', emoji: '🚌' },
+                bills: { name: 'فواتير', emoji: '💡' },
+                entertainment: { name: 'ترفيه', emoji: '🎬' },
+                health: { name: 'صحة', emoji: '💊' },
+                shopping: { name: 'تسوق', emoji: '🛍️' },
+                education: { name: 'تعليم', emoji: '📚' },
+                other: { name: 'أخرى', emoji: '📦' },
+              }[expense.category] || { name: 'أخرى', emoji: '📦' };
+
+              const moodEmoji = {
+                happy: '😊',
+                neutral: '😐',
+                stressed: '😰',
+              }[expense.mood] || '😐';
+
+              return (
+                <View key={expense.id} style={[styles.recentExpenseItem, { borderColor: colors.border }]}>
+                  <View style={styles.recentExpenseLeft}>
+                    <Text style={styles.recentExpenseEmoji}>{categoryInfo.emoji}</Text>
+                    <View style={styles.recentExpenseInfo}>
+                      <Text style={[styles.recentExpenseCategory, { color: colors.text }]}>
+                        {categoryInfo.name}
+                      </Text>
+                      <Text style={[styles.recentExpenseDate, { color: colors.textSecondary }]}>
+                        {new Date(expense.date).toLocaleDateString('ar', { month: 'short', day: 'numeric' })}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.recentExpenseRight}>
+                    <Text style={[styles.recentExpenseAmount, { color: colors.danger }]}>
+                      -{expense.amount.toLocaleString()} د.ج
+                    </Text>
+                    <Text style={styles.recentExpenseMood}>{moodEmoji}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </Animated.View>
+        )}
+
+        {/* Monthly Projection */}
+        <Animated.View style={[styles.projectionCard, { 
+          backgroundColor: projectedMonthlySpend > userData.salary ? colors.danger : colors.success,
+          opacity: fadeAnim 
+        }]}>
+          <Text style={styles.projectionTitle}>📊 توقعات نهاية الشهر</Text>
+          <Text style={styles.projectionText}>
+            بناءً على إنفاقك الحالي، من المتوقع أن تنفق {projectedMonthlySpend.toFixed(0)} د.ج هذا الشهر
           </Text>
-        </View>
+          {projectedMonthlySpend > userData.salary ? (
+            <Text style={styles.projectionWarning}>
+              ⚠️ هذا يتجاوز راتبك بـ {(projectedMonthlySpend - userData.salary).toFixed(0)} د.ج
+            </Text>
+          ) : (
+            <Text style={styles.projectionSuccess}>
+              ✅ ستوفر {(userData.salary - projectedMonthlySpend).toFixed(0)} د.ج تقريباً
+            </Text>
+          )}
+        </Animated.View>
+
       </ScrollView>
+
+      {/* Floating Add Button */}
+      <TouchableOpacity
+        style={[styles.floatingButton, { backgroundColor: colors.primary }]}
+        onPress={handleAddExpense}
+      >
+        <Plus size={28} color="white" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -295,10 +719,83 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  welcomeContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
+  },
+  welcomeCard: {
+    width: '100%',
+    maxWidth: 400,
+    padding: 30,
+    borderRadius: 20,
+    alignItems: 'center',
+    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+  welcomeTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 20,
+    marginBottom: 10,
+    fontFamily: 'Cairo-Bold',
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 15,
+    fontFamily: 'Cairo-Medium',
+  },
+  welcomeDescription: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 30,
+    fontFamily: 'Cairo-Regular',
+  },
+  setupButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 25,
+    elevation: 3,
+    marginBottom: 20,
+  },
+  setupButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 10,
+    fontFamily: 'Cairo-Bold',
+  },
+  featuresContainer: {
+    width: '100%',
+    padding: 20,
+    borderRadius: 15,
+  },
+  featuresTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+    fontFamily: 'Cairo-Bold',
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  featureText: {
+    fontSize: 14,
+    marginLeft: 10,
+    fontFamily: 'Cairo-Regular',
+  },
+  header: {
     padding: 20,
     paddingTop: 50,
     marginBottom: 10,
@@ -309,60 +806,177 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  appTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    fontFamily: 'Cairo-Bold',
-  },
-  overviewCard: {
-    margin: 15,
-    padding: 20,
-    borderRadius: 15,
-    elevation: 3,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  overviewRow: {
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
   },
-  overviewItem: {
-    flex: 1,
-  },
-  overviewLabel: {
-    fontSize: 14,
-    marginBottom: 5,
-    fontFamily: 'Cairo-Regular',
-  },
-  overviewAmount: {
-    fontSize: 24,
+  appTitle: {
+    fontSize: 32,
     fontWeight: 'bold',
     fontFamily: 'Cairo-Bold',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    marginTop: 5,
+    fontFamily: 'Cairo-Regular',
+  },
+  editButton: {
+    padding: 12,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  statusCard: {
+    margin: 15,
+    padding: 25,
+    borderRadius: 20,
+    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  statusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  statusMessage: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 10,
+    fontFamily: 'Cairo-Bold',
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  progressCenter: {
+    alignItems: 'center',
+  },
+  progressPercentage: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: 'Cairo-Bold',
+  },
+  progressLabel: {
+    fontSize: 12,
+    fontFamily: 'Cairo-Regular',
+  },
+  statusDetails: {
+    flex: 1,
+    marginLeft: 25,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  statusLabel: {
+    fontSize: 14,
+    fontFamily: 'Cairo-Regular',
+  },
+  statusValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    fontFamily: 'Cairo-Bold',
+  },
+  quickStatsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginHorizontal: 15,
+    marginBottom: 15,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 15,
+    marginHorizontal: 5,
+    borderRadius: 12,
+    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 8,
+    marginBottom: 4,
+    fontFamily: 'Cairo-Bold',
+  },
+  statLabel: {
+    fontSize: 11,
+    textAlign: 'center',
+    fontFamily: 'Cairo-Regular',
   },
   chartCard: {
     margin: 15,
     padding: 20,
-    borderRadius: 15,
+    borderRadius: 20,
     elevation: 3,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     alignItems: 'center',
   },
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 15,
+  },
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
     fontFamily: 'Cairo-Bold',
+  },
+  viewMoreText: {
+    fontSize: 14,
+    fontFamily: 'Cairo-Medium',
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16,
+  },
+  topCategoryBadge: {
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 10,
+    width: '100%',
+  },
+  topCategoryText: {
+    fontSize: 12,
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontFamily: 'Cairo-Bold',
+  },
+  insightsCard: {
+    margin: 15,
+    padding: 20,
+    borderRadius: 20,
+    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  insightItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  insightText: {
+    fontSize: 14,
+    marginLeft: 12,
+    flex: 1,
+    lineHeight: 20,
+    fontFamily: 'Cairo-Regular',
   },
   tipCard: {
     margin: 15,
     padding: 20,
-    borderRadius: 15,
+    borderRadius: 20,
     elevation: 3,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -379,7 +993,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'white',
     lineHeight: 22,
-    marginBottom: 10,
+    marginBottom: 15,
     fontFamily: 'Cairo-Regular',
   },
   refreshTip: {
@@ -392,20 +1006,22 @@ const styles = StyleSheet.create({
   refreshTipText: {
     color: 'white',
     fontSize: 12,
-    fontFamily: 'Cairo-Medium',
+    fontWeight: 'bold',
+    fontFamily: 'Cairo-Bold',
   },
   actionsCard: {
     margin: 15,
     padding: 20,
-    borderRadius: 15,
+    borderRadius: 20,
     elevation: 3,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  actionsRow: {
+  actionsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 10,
   },
   actionButton: {
     flex: 1,
@@ -413,40 +1029,125 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 12,
     marginHorizontal: 5,
+    elevation: 2,
   },
   actionButtonText: {
     color: 'white',
     marginLeft: 8,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     fontFamily: 'Cairo-Bold',
   },
-  budgetCard: {
+  recentExpensesCard: {
     margin: 15,
-    marginBottom: 30,
     padding: 20,
-    borderRadius: 15,
+    borderRadius: 20,
     elevation: 3,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  budgetProgress: {
-    height: 8,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 4,
-    marginBottom: 10,
-    overflow: 'hidden',
+  recentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
   },
-  budgetBar: {
-    height: '100%',
-    borderRadius: 4,
+  viewAllText: {
+    fontSize: 14,
+    fontFamily: 'Cairo-Medium',
   },
-  budgetText: {
-    fontSize: 12,
-    textAlign: 'center',
+  recentExpenseItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  recentExpenseLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  recentExpenseEmoji: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  recentExpenseInfo: {
+    flex: 1,
+  },
+  recentExpenseCategory: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    fontFamily: 'Cairo-Bold',
+  },
+  recentExpenseDate: {
+    fontSize: 11,
+    marginTop: 2,
     fontFamily: 'Cairo-Regular',
+  },
+  recentExpenseRight: {
+    alignItems: 'flex-end',
+  },
+  recentExpenseAmount: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    fontFamily: 'Cairo-Bold',
+  },
+  recentExpenseMood: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  projectionCard: {
+    margin: 15,
+    marginBottom: 100, // مساحة للزر العائم
+    padding: 20,
+    borderRadius: 20,
+    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  projectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 10,
+    fontFamily: 'Cairo-Bold',
+  },
+  projectionText: {
+    fontSize: 14,
+    color: 'white',
+    lineHeight: 20,
+    marginBottom: 8,
+    fontFamily: 'Cairo-Regular',
+  },
+  projectionWarning: {
+    fontSize: 13,
+    color: 'white',
+    fontWeight: 'bold',
+    fontFamily: 'Cairo-Bold',
+  },
+  projectionSuccess: {
+    fontSize: 13,
+    color: 'white',
+    fontWeight: 'bold',
+    fontFamily: 'Cairo-Bold',
+  },
+  floatingButton: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
 });

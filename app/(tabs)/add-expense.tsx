@@ -12,19 +12,12 @@ import {
   Platform,
 } from 'react-native';
 import { useColorScheme } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DatabaseService } from '@/utils/database';
 import { useRouter } from 'expo-router';
 import { Save, Calendar, Hash, MessageSquare, Smile, Frown, Meh } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-interface Expense {
-  id: string;
-  amount: number;
-  category: string;
-  date: string;
-  mood: string;
-  note?: string;
-}
+import { Expense } from '@/utils/database';
 
 interface CategoryItem {
   id: string;
@@ -88,8 +81,6 @@ export default function AddExpenseScreen() {
     }
 
     try {
-      const userData = await AsyncStorage.getItem('userData');
-      let currentData = userData ? JSON.parse(userData) : { salary: 0, monthlyExpenses: [] };
 
       const newExpense: Expense = {
         id: Date.now().toString(),
@@ -98,10 +89,11 @@ export default function AddExpenseScreen() {
         date: selectedDate.toISOString(),
         mood: selectedMood,
         note: note.trim() || undefined,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
-      currentData.monthlyExpenses.push(newExpense);
-      await AsyncStorage.setItem('userData', JSON.stringify(currentData));
+      await DatabaseService.addExpense(newExpense);
 
       Alert.alert(
         'تم الحفظ',

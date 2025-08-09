@@ -9,36 +9,20 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useColorScheme } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DatabaseService, Expense, UserSettings } from '@/utils/database';
 import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
 import { TrendingUp, TrendingDown, Calendar, DollarSign, CircleAlert as AlertCircle } from 'lucide-react-native';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 const { width } = Dimensions.get('window');
-
-interface Expense {
-  id: string;
-  amount: number;
-  category: string;
-  date: string;
-  mood: string;
-  note?: string;
-}
-
-interface UserData {
-  salary: number;
-  monthlyExpenses: Expense[];
-  salaryDate: string;
-}
 
 export default function AnalyticsScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const [userData, setUserData] = useState<UserData>({
-    salary: 0,
-    monthlyExpenses: [],
-    salaryDate: new Date().toISOString(),
-  });
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year'>('month');
 
@@ -56,22 +40,28 @@ export default function AnalyticsScreen() {
   };
 
   useEffect(() => {
-    loadUserData();
+    loadAnalyticsData();
   }, []);
 
-  const loadUserData = async () => {
+  const loadAnalyticsData = async () => {
     try {
-      const data = await AsyncStorage.getItem('userData');
-      if (data) {
-        setUserData(JSON.parse(data));
-      }
+      setLoading(true);
+      const [settings, monthlyExpenses] = await Promise.all([
+        DatabaseService.getUserSettings(),
+        DatabaseService.getExpensesByMonth(new Date().toISOString().slice(0, 7)),
+      ]);
+      
+      setUserSettings(settings);
+      setExpenses(monthlyExpenses);
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error('Error loading analytics data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const getCategoryTotals = () => {
-    const categories = userData.monthlyExpenses.reduce((acc, expense) => {
+    const categories = expenses.reduce((acc, expense) => {
       acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
       return acc;
     }, {} as Record<string, number>);
@@ -123,7 +113,7 @@ export default function AnalyticsScreen() {
       weeklyData[dayKey] = 0;
     }
 
-    userData.monthlyExpenses.forEach(expense => {
+    expenses.forEach(expense => {
       const expenseDate = expense.date.split('T')[0];
       if (weeklyData.hasOwnProperty(expenseDate)) {
         weeklyData[expenseDate] += expense.amount;
@@ -137,7 +127,7 @@ export default function AnalyticsScreen() {
   };
 
   const getMoodAnalysis = () => {
-    const moodTotals = userData.monthlyExpenses.reduce((acc, expense) => {
+    const moodTotals = expenses.reduce((acc, expense) => {
       acc[expense.mood] = (acc[expense.mood] || 0) + expense.amount;
       return acc;
     }, {} as Record<string, number>);
@@ -151,8 +141,8 @@ export default function AnalyticsScreen() {
     return Object.entries(moodTotals).map(([mood, amount]) => ({
       mood: moodNames[mood] || mood,
       amount,
-      percentage: userData.monthlyExpenses.length > 0 
-        ? ((amount / userData.monthlyExpenses.reduce((sum, exp) => sum + exp.amount, 0)) * 100).toFixed(1)
+      percentage: expenses.length > 0 
+        ? ((amount / expenses.reduce((sum, exp) => sum + exp.amount, 0)) * 100).toFixed(1)
         : '0',
     }));
   };
@@ -165,15 +155,9 @@ export default function AnalyticsScreen() {
     );
   };
 
-  const getTotalExpenses = () => {
-    return userData.monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  };
+  const getTotalExpenses = () => expenses.reduce((sum, expense) => sum + expense.amount, 0);
 
-  const getAverageDaily = () => {
-    const totalExpenses = getTotalExpenses();
-    const daysInMonth = new Date().getDate();
-    return totalExpenses / daysInMonth;
-  };
+  const getAverageDaily = () => getTotalExpenses() / new Date().getDate();
 
   const getSpendingTrend = () => {
     const thisMonth = getTotalExpenses();
@@ -187,6 +171,10 @@ export default function AnalyticsScreen() {
       isIncrease: change > 0,
     };
   };
+
+  if (loading) {
+    return <LoadingSpinner message="جاري تحميل التقارير..." />;
+  }
 
   const weeklyData = getWeeklySpending();
   const categoryData = getCategoryTotals();
@@ -319,11 +307,11 @@ export default function AnalyticsScreen() {
             </Text>
           </View>
 
-          {userData.salary > 0 && (
+          {(userSettings?.salary || 0) > 0 && (
             <View style={styles.insightItem}>
               <DollarSign size={20} color={colors.primary} />
               <Text style={[styles.insightText, { color: colors.text }]}>
-                نسبة الإنفاق من الراتب: {((totalExpenses / userData.salary) * 100).toFixed(1)}%
+                نسبة الإنفاق من الراتب: {((totalExpenses / (userSettings?.salary || 1)) * 100).toFixed(1)}%
               </Text>
             </View>
           )}
@@ -359,7 +347,7 @@ export default function AnalyticsScreen() {
         <View style={[styles.recommendationsCard, { backgroundColor: colors.primary }]}>
           <Text style={styles.recommendationsTitle}>💡 توصيات لتحسين الإنفاق</Text>
           
-          {totalExpenses > userData.salary * 0.8 && (
+          {totalExpenses > (userSettings?.salary || 0) * 0.8 && (
             <Text style={styles.recommendationText}>
               • تقترب من حد الراتب، حاول تقليل الإنفاق في الفئات الاختيارية
             </Text>
@@ -372,7 +360,7 @@ export default function AnalyticsScreen() {
           )}
           
           <Text style={styles.recommendationText}>
-            • ضع ميزانية يومية قدرها {(userData.salary / 30).toFixed(0)} د.ج للتحكم في الإنفاق
+            • ضع ميزانية يومية قدرها {((userSettings?.salary || 0) / 30).toFixed(0)} د.ج للتحكم في الإنفاق
           </Text>
         </View>
 

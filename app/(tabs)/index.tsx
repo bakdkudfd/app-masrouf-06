@@ -14,27 +14,18 @@ import {
 import { PieChart, LineChart } from 'react-native-chart-kit';
 import { CreditCard as Edit3, TrendingUp, TrendingDown, DollarSign, Calendar, Plus, ChartBar as BarChart3, Target, Eye, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Clock, Wallet, PiggyBank, Activity } from 'lucide-react-native';
 import { useColorScheme } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DatabaseService, UserSettings } from '@/utils/database';
+import { MigrationService } from '@/utils/migrationService';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { CircularProgress } from '@/components/CircularProgress';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { EmptyState } from '@/components/EmptyState';
+import { StatCard } from '@/components/StatCard';
 
 const { width } = Dimensions.get('window');
 
-interface Expense {
-  id: string;
-  amount: number;
-  category: string;
-  date: string;
-  mood: string;
-  note?: string;
-}
-
-interface UserData {
-  salary: number;
-  monthlyExpenses: Expense[];
-  salaryDate: string;
-}
+import { Expense } from '@/utils/database';
 
 interface DailySpending {
   date: string;
@@ -46,11 +37,9 @@ export default function HomeScreen() {
   const isDark = colorScheme === 'dark';
   const router = useRouter();
 
-  const [userData, setUserData] = useState<UserData>({
-    salary: 0,
-    monthlyExpenses: [],
-    salaryDate: new Date().toISOString(),
-  });
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [financialTip, setFinancialTip] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -89,44 +78,52 @@ export default function HomeScreen() {
   // استخدام useFocusEffect لتحديث البيانات عند العودة للصفحة
   useFocusEffect(
     useCallback(() => {
-      loadUserData();
+      loadData();
     }, [])
   );
 
   useEffect(() => {
-    checkFirstTime();
+    initializeApp();
     setRandomTip();
   }, []);
 
-  const checkFirstTime = async () => {
+  const initializeApp = async () => {
     try {
-      const data = await AsyncStorage.getItem('userData');
-      if (!data) {
+      // Run migration from AsyncStorage to SQLite
+      await MigrationService.migrateFromAsyncStorage();
+      
+      const settings = await DatabaseService.getUserSettings();
+      if (!settings || settings.salary === 0) {
         setIsFirstTime(true);
+      } else {
+        setIsFirstTime(false);
       }
+      await loadData();
     } catch (error) {
-      console.error('Error checking first time:', error);
+      console.error('Error initializing app:', error);
+      setIsFirstTime(true);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadUserData = async () => {
+  const loadData = async () => {
     try {
-      const data = await AsyncStorage.getItem('userData');
-      if (data) {
-        const parsedData = JSON.parse(data);
-        setUserData(parsedData);
-        setIsFirstTime(false);
-      } else {
-        setIsFirstTime(true);
-      }
+      const [settings, monthlyExpenses] = await Promise.all([
+        DatabaseService.getUserSettings(),
+        DatabaseService.getExpensesByMonth(new Date().toISOString().slice(0, 7)),
+      ]);
+      
+      setUserSettings(settings);
+      setExpenses(monthlyExpenses);
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error('Error loading data:', error);
     }
   };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadUserData();
+    await loadData();
     setRandomTip();
     
     // إضافة تأثير بصري للتحديث
@@ -144,9 +141,9 @@ export default function HomeScreen() {
   };
 
   // حسابات مالية متقدمة
-  const totalExpenses = userData.monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const remainingBalance = userData.salary - totalExpenses;
-  const spendingPercentage = userData.salary > 0 ? (totalExpenses / userData.salary) * 100 : 0;
+  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const remainingBalance = (userSettings?.salary || 0) - totalExpenses;
+  const spendingPercentage = (userSettings?.salary || 0) > 0 ? (totalExpenses / (userSettings?.salary || 1)) * 100 : 0;
   
   // حساب متوسط الإنفاق اليومي
   const today = new Date();
@@ -157,7 +154,7 @@ export default function HomeScreen() {
   const projectedMonthlySpend = dailyAverage * daysInMonth;
   
   // حساب معدل الادخار
-  const savingsRate = userData.salary > 0 ? ((userData.salary - totalExpenses) / userData.salary) * 100 : 0;
+  const savingsRate = (userSettings?.salary || 0) > 0 ? (((userSettings?.salary || 0) - totalExpenses) / (userSettings?.salary || 1)) * 100 : 0;
   
   // تحليل الإنفاق الأسبوعي
   const getWeeklySpending = (): DailySpending[] => {
@@ -169,7 +166,7 @@ export default function HomeScreen() {
       weeklyData[dayKey] = 0;
     }
 
-    userData.monthlyExpenses.forEach(expense => {
+    expenses.forEach(expense => {
       const expenseDate = expense.date.split('T')[0];
       if (weeklyData.hasOwnProperty(expenseDate)) {
         weeklyData[expenseDate] += expense.amount;
@@ -183,7 +180,7 @@ export default function HomeScreen() {
   };
 
   const getCategoryTotals = () => {
-    const categories = userData.monthlyExpenses.reduce((acc, expense) => {
+    const categories = expenses.reduce((acc, expense) => {
       acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
       return acc;
     }, {} as Record<string, number>);
@@ -252,6 +249,11 @@ export default function HomeScreen() {
   const handleAddExpense = () => {
     router.push('/add-expense');
   };
+
+  // عرض شاشة التحميل
+  if (loading) {
+    return <LoadingSpinner message="جاري تحميل البيانات..." />;
+  }
 
   const chartData = getCategoryTotals();
   const weeklyData = getWeeklySpending();
@@ -407,7 +409,7 @@ export default function HomeScreen() {
               <View style={styles.statusRow}>
                 <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>الراتب الشهري:</Text>
                 <Text style={[styles.statusValue, { color: colors.primary }]}>
-                  {userData.salary.toLocaleString()} د.ج
+                  {(userSettings?.salary || 0).toLocaleString()} د.ج
                 </Text>
               </View>
               <View style={styles.statusRow}>
@@ -517,7 +519,7 @@ export default function HomeScreen() {
               <View style={[styles.topCategoryBadge, { backgroundColor: colors.primary + '20' }]}>
                 <Text style={[styles.topCategoryText, { color: colors.primary }]}>
                   أكثر فئة إنفاقاً: {topCategory.name} ({((topCategory.amount / totalExpenses) * 100).toFixed(0)}%)
-                </Text>
+                راتب شهري: {(userSettings?.salary || 0).toLocaleString()} د.ج
               </View>
             )}
           </Animated.View>
@@ -534,11 +536,11 @@ export default function HomeScreen() {
             </Text>
           </View>
 
-          {projectedMonthlySpend > userData.salary && (
+          {projectedMonthlySpend > (userSettings?.salary || 0) && (
             <View style={styles.insightItem}>
               <AlertTriangle size={18} color={colors.danger} />
               <Text style={[styles.insightText, { color: colors.danger }]}>
-                تحذير: قد تتجاوز راتبك بـ {(projectedMonthlySpend - userData.salary).toFixed(0)} د.ج
+                تحذير: قد تتجاوز راتبك بـ {(projectedMonthlySpend - (userSettings?.salary || 0)).toFixed(0)} د.ج
               </Text>
             </View>
           )}
@@ -550,11 +552,11 @@ export default function HomeScreen() {
             </Text>
           </View>
 
-          {userData.monthlyExpenses.length >= 5 && (
+          {expenses.length >= 5 && (
             <View style={styles.insightItem}>
               <CheckCircle size={18} color={colors.primary} />
               <Text style={[styles.insightText, { color: colors.text }]}>
-                ممتاز! لديك {userData.monthlyExpenses.length} مصروف مسجل هذا الشهر
+                ممتاز! لديك {expenses.length} مصروف مسجل هذا الشهر
               </Text>
             </View>
           )}
@@ -611,7 +613,7 @@ export default function HomeScreen() {
         </Animated.View>
 
         {/* Recent Expenses Preview */}
-        {userData.monthlyExpenses.length > 0 && (
+        {expenses.length > 0 && (
           <Animated.View style={[styles.recentExpensesCard, { backgroundColor: colors.card, opacity: fadeAnim }]}>
             <View style={styles.recentHeader}>
               <Text style={[styles.cardTitle, { color: colors.text }]}>آخر المصاريف</Text>
@@ -620,7 +622,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            {userData.monthlyExpenses.slice(-3).reverse().map((expense) => {
+            {expenses.slice(-3).reverse().map((expense) => {
               const categoryInfo = {
                 food: { name: 'طعام', emoji: '🍔' },
                 transport: { name: 'نقل', emoji: '🚌' },
@@ -665,20 +667,20 @@ export default function HomeScreen() {
 
         {/* Monthly Projection */}
         <Animated.View style={[styles.projectionCard, { 
-          backgroundColor: projectedMonthlySpend > userData.salary ? colors.danger : colors.success,
+          backgroundColor: projectedMonthlySpend > (userSettings?.salary || 0) ? colors.danger : colors.success,
           opacity: fadeAnim 
         }]}>
           <Text style={styles.projectionTitle}>📊 توقعات نهاية الشهر</Text>
           <Text style={styles.projectionText}>
             بناءً على إنفاقك الحالي، من المتوقع أن تنفق {projectedMonthlySpend.toFixed(0)} د.ج هذا الشهر
           </Text>
-          {projectedMonthlySpend > userData.salary ? (
+          {projectedMonthlySpend > (userSettings?.salary || 0) ? (
             <Text style={styles.projectionWarning}>
-              ⚠️ هذا يتجاوز راتبك بـ {(projectedMonthlySpend - userData.salary).toFixed(0)} د.ج
+              ⚠️ هذا يتجاوز راتبك بـ {(projectedMonthlySpend - (userSettings?.salary || 0)).toFixed(0)} د.ج
             </Text>
           ) : (
             <Text style={styles.projectionSuccess}>
-              ✅ ستوفر {(userData.salary - projectedMonthlySpend).toFixed(0)} د.ج تقريباً
+              ✅ ستوفر {((userSettings?.salary || 0) - projectedMonthlySpend).toFixed(0)} د.ج تقريباً
             </Text>
           )}
         </Animated.View>

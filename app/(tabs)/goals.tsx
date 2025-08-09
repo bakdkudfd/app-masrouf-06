@@ -11,20 +11,12 @@ import {
   Modal,
 } from 'react-native';
 import { useColorScheme } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DatabaseService, FinancialGoal } from '@/utils/database';
 import { Plus, Target, Calendar, DollarSign, Trophy, CreditCard as Edit3, Trash2 } from 'lucide-react-native';
 import { CircularProgress } from 'react-native-circular-progress';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { EmptyState } from '@/components/EmptyState';
 
-interface FinancialGoal {
-  id: string;
-  title: string;
-  targetAmount: number;
-  currentAmount: number;
-  deadline: string;
-  category: string;
-  emoji: string;
-  createdAt: string;
-}
 
 export default function GoalsScreen() {
   const colorScheme = useColorScheme();
@@ -33,6 +25,7 @@ export default function GoalsScreen() {
   const [goals, setGoals] = useState<FinancialGoal[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState<FinancialGoal | null>(null);
+  const [loading, setLoading] = useState(true);
   const [newGoal, setNewGoal] = useState({
     title: '',
     targetAmount: '',
@@ -75,18 +68,19 @@ export default function GoalsScreen() {
 
   const loadGoals = async () => {
     try {
-      const data = await AsyncStorage.getItem('financialGoals');
-      if (data) {
-        setGoals(JSON.parse(data));
-      }
+      setLoading(true);
+      const goalsData = await DatabaseService.getFinancialGoals();
+      setGoals(goalsData);
     } catch (error) {
       console.error('Error loading goals:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const saveGoals = async (updatedGoals: FinancialGoal[]) => {
     try {
-      await AsyncStorage.setItem('financialGoals', JSON.stringify(updatedGoals));
+      // This method is no longer needed as we save directly to database
       setGoals(updatedGoals);
     } catch (error) {
       console.error('Error saving goals:', error);
@@ -109,16 +103,18 @@ export default function GoalsScreen() {
     const goal: FinancialGoal = {
       id: Date.now().toString(),
       title: newGoal.title,
-      targetAmount: amount,
-      currentAmount: 0,
+      target_amount: amount,
+      current_amount: 0,
       deadline: newGoal.deadline,
       category: newGoal.category,
       emoji: categoryData?.emoji || '🎯',
-      createdAt: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_completed: false,
     };
 
-    const updatedGoals = [...goals, goal];
-    saveGoals(updatedGoals);
+    await DatabaseService.addFinancialGoal(goal);
+    await loadGoals();
     
     setNewGoal({ title: '', targetAmount: '', deadline: '', category: '', emoji: '🎯' });
     setShowAddModal(false);
@@ -144,13 +140,22 @@ export default function GoalsScreen() {
               if (goal.id === goalId) {
                 return {
                   ...goal,
-                  currentAmount: Math.min(goal.currentAmount + amountToAdd, goal.targetAmount),
+                  current_amount: Math.min(goal.current_amount + amountToAdd, goal.target_amount),
                 };
               }
               return goal;
             });
 
-            saveGoals(updatedGoals);
+            // Update in database
+            const goalToUpdate = goals.find(g => g.id === goalId);
+            if (goalToUpdate) {
+              const newAmount = Math.min(goalToUpdate.current_amount + amountToAdd, goalToUpdate.target_amount);
+              await DatabaseService.updateFinancialGoal(goalId, { 
+                current_amount: newAmount,
+                is_completed: newAmount >= goalToUpdate.target_amount,
+              });
+              await loadGoals();
+            }
           },
         },
       ],
@@ -170,8 +175,9 @@ export default function GoalsScreen() {
           text: 'حذف', 
           style: 'destructive',
           onPress: () => {
-            const updatedGoals = goals.filter(goal => goal.id !== goalId);
-            saveGoals(updatedGoals);
+            DatabaseService.deleteFinancialGoal(goalId).then(() => {
+              loadGoals();
+            });
           }
         },
       ]
@@ -181,6 +187,10 @@ export default function GoalsScreen() {
   const getProgressPercentage = (current: number, target: number) => {
     return Math.min((current / target) * 100, 100);
   };
+
+  if (loading) {
+    return <LoadingSpinner message="جاري تحميل الأهداف..." />;
+  }
 
   const getDaysRemaining = (deadline: string) => {
     const deadlineDate = new Date(deadline);
@@ -212,22 +222,16 @@ export default function GoalsScreen() {
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
         
         {goals.length === 0 ? (
-          <View style={[styles.emptyState, { backgroundColor: colors.card }]}>
-            <Target size={64} color={colors.textSecondary} />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>لا توجد أهداف مالية</Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-              ابدأ بإضافة هدف مالي لتتبع تقدمك نحو أحلامك
-            </Text>
-            <TouchableOpacity
-              style={[styles.emptyButton, { backgroundColor: colors.primary }]}
-              onPress={() => setShowAddModal(true)}
-            >
-              <Text style={styles.emptyButtonText}>إضافة هدف جديد</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon={<Target size={64} color={colors.textSecondary} />}
+            title="لا توجد أهداف مالية"
+            subtitle="ابدأ بإضافة هدف مالي لتتبع تقدمك نحو أحلامك"
+            actionText="إضافة هدف جديد"
+            onAction={() => setShowAddModal(true)}
+          />
         ) : (
           goals.map((goal) => {
-            const progress = getProgressPercentage(goal.currentAmount, goal.targetAmount);
+            const progress = getProgressPercentage(goal.current_amount, goal.target_amount);
             const daysRemaining = getDaysRemaining(goal.deadline);
             const isCompleted = progress >= 100;
             const isOverdue = daysRemaining < 0;
@@ -280,10 +284,10 @@ export default function GoalsScreen() {
                   <View style={styles.progressDetails}>
                     <View style={styles.amountRow}>
                       <Text style={[styles.currentAmount, { color: colors.primary }]}>
-                        {goal.currentAmount.toLocaleString()} د.ج
+                        {goal.current_amount.toLocaleString()} د.ج
                       </Text>
                       <Text style={[styles.targetAmount, { color: colors.textSecondary }]}>
-                        من {goal.targetAmount.toLocaleString()} د.ج
+                        من {goal.target_amount.toLocaleString()} د.ج
                       </Text>
                     </View>
 

@@ -13,7 +13,7 @@ import {
 import { useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { DatabaseService } from '@/utils/database';
-import { ArrowLeft, Download, Upload, Share2, Database, Shield, Clock, CheckCircle } from 'lucide-react-native';
+import { ArrowLeft, Download, Upload, Share2, Database, Shield, Clock, CircleCheck as CheckCircle } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 

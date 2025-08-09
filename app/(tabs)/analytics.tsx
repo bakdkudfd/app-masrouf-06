@@ -191,6 +191,8 @@ export default function AnalyticsScreen() {
     decimalPlaces: 0,
     color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
     labelColor: (opacity = 1) => colors.text,
+    formatYLabel: (value: string) => String(Math.round(Number(value) || 0)),
+    formatXLabel: (value: string) => String(value || ''),
     style: {
       borderRadius: 16,
     },

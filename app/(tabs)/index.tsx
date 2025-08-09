@@ -12,23 +12,7 @@ import {
   Animated,
 } from 'react-native';
 import { PieChart, LineChart } from 'react-native-chart-kit';
-import { 
-  CreditCard as Edit3, 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Calendar, 
-  Plus, 
-  ChartBar as BarChart3, 
-  Target,
-  Eye,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  Wallet,
-  PiggyBank,
-  Activity
-} from 'lucide-react-native';
+import { CreditCard as Edit3, TrendingUp, TrendingDown, DollarSign, Calendar, Plus, ChartBar as BarChart3, Target, Eye, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Clock, Wallet, PiggyBank, Activity } from 'lucide-react-native';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';

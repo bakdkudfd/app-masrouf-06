@@ -13,8 +13,8 @@ import {
 import { useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ArrowLeft, Plus, CreditCard as Edit3, Trash2, Save, Target, DollarSign, Calendar } from 'lucide-react-native';
-import { CircularProgress } from '@/components/CircularProgress';
+import { ArrowLeft, Plus, Edit3, Trash2, Save, Target, DollarSign, Calendar } from 'lucide-react-native';
+import { CircularProgress } from 'react-native-circular-progress';
 
 interface BudgetCategory {
   id: string;

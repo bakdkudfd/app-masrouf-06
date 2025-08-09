@@ -25,7 +25,7 @@ import {
   DollarSign, 
   Wallet, 
   Info, 
-  CircleHelp as HelpCircle, 
+  HelpCircle, 
   ChevronRight,
   Calendar,
   RefreshCw,
@@ -33,6 +33,7 @@ import {
   Shield,
   Smartphone
 } from 'lucide-react-native';
+import { DatabaseService } from '@/utils/database';
 
 interface AppSettings {
   darkMode: boolean;

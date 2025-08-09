@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { DatabaseService, FinancialGoal } from '@/utils/database';
-import { Plus, Target, Calendar, DollarSign, Trophy, CreditCard as Edit3, Trash2 } from 'lucide-react-native';
+import { Plus, Target, Calendar, DollarSign, Trophy, Edit3, Trash2 } from 'lucide-react-native';
 import { CircularProgress } from 'react-native-circular-progress';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { EmptyState } from '@/components/EmptyState';

@@ -53,6 +53,7 @@ export default function HomeScreen() {
   const loadHomeData = async () => {
     try {
       setLoading(true);
+      await DatabaseService.initializeDatabase();
       const [settings, monthlyExpenses] = await Promise.all([
         DatabaseService.getUserSettings(),
         DatabaseService.getExpensesByMonth(new Date().toISOString().slice(0, 7)),

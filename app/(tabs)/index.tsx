@@ -133,6 +133,14 @@ export default function HomeScreen() {
     router.push('/salary-setup');
   };
 
+  const handleViewAllExpenses = () => {
+    router.push('/expenses-list');
+  };
+
+  const handleBudgetPlanner = () => {
+    router.push('/budget-planner');
+  };
+
   const chartData = getCategoryTotals();
 
   return (
@@ -232,10 +240,28 @@ export default function HomeScreen() {
             
             <TouchableOpacity 
               style={[styles.actionButton, { backgroundColor: colors.secondary }]}
+              onPress={handleViewAllExpenses}
+            >
+              <BarChart3 size={24} color="white" />
+              <Text style={styles.actionButtonText}>قائمة المصاريف</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={[styles.actionsRow, { marginTop: 10 }]}>
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: colors.accent }]}
+              onPress={handleBudgetPlanner}
+            >
+              <Target size={24} color="white" />
+              <Text style={styles.actionButtonText}>مخطط الميزانية</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: colors.secondary }]}
               onPress={() => router.push('/analytics')}
             >
               <BarChart3 size={24} color="white" />
-              <Text style={styles.actionButtonText}>عرض التقارير</Text>
+              <Text style={styles.actionButtonText}>التقارير</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 import { Moon, Sun, Bell, Download, Share2, Trash2, DollarSign, Wallet, Info, CircleHelp as HelpCircle, Settings as SettingsIcon, ChevronRight } from 'lucide-react-native';
 
 interface AppSettings {
@@ -24,6 +25,7 @@ interface AppSettings {
 
 export default function SettingsScreen() {
   const systemColorScheme = useColorScheme();
+  const router = useRouter();
   const [settings, setSettings] = useState<AppSettings>({
     darkMode: systemColorScheme === 'dark',
     notifications: true,
@@ -134,39 +136,7 @@ export default function SettingsScreen() {
   };
 
   const handleEditSalary = () => {
-    Alert.prompt(
-      'تعديل الراتب',
-      'أدخل راتبك الشهري الجديد:',
-      [
-        { text: 'إلغاء', style: 'cancel' },
-        {
-          text: 'حفظ',
-          onPress: async (input) => {
-            const newSalary = parseFloat(input || '0');
-            if (isNaN(newSalary) || newSalary < 0) {
-              Alert.alert('خطأ', 'يرجى إدخال مبلغ صحيح');
-              return;
-            }
-
-            try {
-              const userData = await AsyncStorage.getItem('userData');
-              const currentData = userData ? JSON.parse(userData) : { monthlyExpenses: [] };
-              currentData.salary = newSalary;
-              currentData.salaryDate = new Date().toISOString();
-              
-              await AsyncStorage.setItem('userData', JSON.stringify(currentData));
-              Alert.alert('تم الحفظ', 'تم تحديث راتبك بنجاح');
-            } catch (error) {
-              console.error('Error updating salary:', error);
-              Alert.alert('خطأ', 'حدث خطأ أثناء تحديث الراتب');
-            }
-          },
-        },
-      ],
-      'plain-text',
-      '',
-      'numeric'
-    );
+    router.push('/salary-setup');
   };
 
   const showAbout = () => {

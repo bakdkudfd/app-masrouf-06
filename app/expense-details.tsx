@@ -13,7 +13,7 @@ import {
 import { useColorScheme } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { DatabaseService, Expense } from '@/utils/database';
-import { ArrowLeft, Edit3, Trash2, Save, Calendar, MessageSquare, Hash } from 'lucide-react-native';
+import { ArrowLeft, CreditCard as Edit3, Trash2, Save, Calendar, MessageSquare, Hash } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function ExpenseDetailsScreen() {

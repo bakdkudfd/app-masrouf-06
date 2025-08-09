@@ -11,7 +11,7 @@ import {
 import { useColorScheme } from 'react-native';
 import { DatabaseService, Expense, UserSettings } from '@/utils/database';
 import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
-import { TrendingUp, TrendingDown, Calendar, DollarSign, AlertTriangle as AlertCircle } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Calendar, DollarSign, TriangleAlert as AlertCircle } from 'lucide-react-native';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 const { width } = Dimensions.get('window');

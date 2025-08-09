@@ -15,24 +15,7 @@ import {
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { 
-  Moon, 
-  Sun, 
-  Bell, 
-  Download, 
-  Share2, 
-  Trash2, 
-  DollarSign, 
-  Wallet, 
-  Info, 
-  HelpCircle, 
-  ChevronRight,
-  Calendar,
-  RefreshCw,
-  Database,
-  Shield,
-  Smartphone
-} from 'lucide-react-native';
+import { Moon, Sun, Bell, Download, Share2, Trash2, DollarSign, Wallet, Info, CircleHelp as HelpCircle, ChevronRight, Calendar, RefreshCw, Database, Shield, Smartphone } from 'lucide-react-native';
 import { DatabaseService } from '@/utils/database';
 
 interface AppSettings {

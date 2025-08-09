@@ -13,20 +13,7 @@ import {
 import { useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { DatabaseService, Expense, UserSettings } from '@/utils/database';
-import { 
-  Plus, 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Calendar, 
-  Target, 
-  BarChart3,
-  Wallet,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  ArrowRight
-} from 'lucide-react-native';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar, Target, ChartBar as BarChart3, Wallet, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Clock, ArrowRight } from 'lucide-react-native';
 import { StatCard } from '@/components/StatCard';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { formatDateArabic, formatDateShort, isToday } from '@/utils/dateHelpers';

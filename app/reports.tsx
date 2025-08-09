@@ -13,7 +13,7 @@ import { useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { DatabaseService, Expense } from '@/utils/database';
 import { AnalyticsService } from '@/utils/analytics';
-import { ArrowLeft, Calendar, TrendingUp, PieChart, BarChart3, Download, Share2 } from 'lucide-react-native';
+import { ArrowLeft, Calendar, TrendingUp, ChartPie as PieChart, ChartBar as BarChart3, Download, Share2 } from 'lucide-react-native';
 import { LineChart, BarChart, PieChart as RNPieChart } from 'react-native-chart-kit';
 
 const { width } = Dimensions.get('window');

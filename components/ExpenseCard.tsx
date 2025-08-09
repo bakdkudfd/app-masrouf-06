@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Expense } from '@/utils/storage';
 import { formatDateShort } from '@/utils/dateHelpers';
-import { Edit3, Trash2 } from 'lucide-react-native';
+import { CreditCard as Edit3, Trash2 } from 'lucide-react-native';
 
 interface ExpenseCardProps {
   expense: Expense;

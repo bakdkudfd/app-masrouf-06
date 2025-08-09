@@ -62,6 +62,11 @@ export class DatabaseService {
   private static db: SQLite.SQLiteDatabase | null = null;
 
   static async initializeDatabase(): Promise<void> {
+    // Prevent multiple initialization attempts
+    if (this.db !== null) {
+      return;
+    }
+
     try {
       this.db = await SQLite.openDatabaseAsync('mesrof.db');
       await this.createTables();

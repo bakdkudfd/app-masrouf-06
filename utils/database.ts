@@ -60,19 +60,41 @@ export interface MonthlyBudget {
 
 export class DatabaseService {
   private static db: SQLite.SQLiteDatabase | null = null;
+  private static isInitializing: boolean = false;
+  private static initializationPromise: Promise<void> | null = null;
 
   static async initializeDatabase(): Promise<void> {
-    // Prevent multiple initialization attempts
-    if (this.db !== null) {
-      return;
+    // Return existing initialization promise if already initializing
+    if (this.isInitializing && this.initializationPromise) {
+      return this.initializationPromise;
     }
 
+    // Return immediately if already initialized
+    if (this.db !== null) {
+      return Promise.resolve();
+    }
+
+    // Set initialization flag and create promise
+    this.isInitializing = true;
+    this.initializationPromise = this.performInitialization();
+
+    try {
+      await this.initializationPromise;
+    } finally {
+      this.isInitializing = false;
+      this.initializationPromise = null;
+    }
+  }
+
+  private static async performInitialization(): Promise<void> {
     try {
       this.db = await SQLite.openDatabaseAsync('mesrof.db');
       await this.createTables();
       await this.insertDefaultData();
     } catch (error) {
       console.error('Error initializing database:', error);
+      // Reset state on error
+      this.db = null;
       throw error;
     }
   }

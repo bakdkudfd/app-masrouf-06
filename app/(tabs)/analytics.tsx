@@ -293,7 +293,7 @@ export default function AnalyticsScreen() {
         <View style={[styles.insightsCard, { backgroundColor: colors.card }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>رؤى ذكية</Text>
           
-          {topCategory.name && (
+          {topCategory.amount > 0 && (
             <View style={styles.insightItem}>
               <AlertCircle size={20} color={colors.warning} />
               <Text style={[styles.insightText, { color: colors.text }]}>

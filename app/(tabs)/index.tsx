@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
-import { CreditCard as Edit3, TrendingUp, TrendingDown, DollarSign, Calendar, Plus, ChartBar as BarChart3 } from 'lucide-react-native';
+import { CreditCard as Edit3, TrendingUp, TrendingDown, DollarSign, Calendar, Plus, ChartBar as BarChart3, Target } from 'lucide-react-native';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';

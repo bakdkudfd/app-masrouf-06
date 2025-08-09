@@ -129,7 +129,7 @@ export default function GoalsScreen() {
         { text: 'إلغاء', style: 'cancel' },
         {
           text: 'حفظ',
-          onPress: (inputAmount) => {
+          onPress: async (inputAmount) => {
             const amountToAdd = parseFloat(inputAmount || '0');
             if (isNaN(amountToAdd) || amountToAdd < 0) {
               Alert.alert('خطأ', 'يرجى إدخال مبلغ صحيح');

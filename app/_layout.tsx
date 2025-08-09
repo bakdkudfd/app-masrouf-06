@@ -57,38 +57,3 @@ export default function RootLayout() {
     </>
   );
 }
-        
-        // Hide splash screen once fonts are loaded
-        if (fontsLoaded || fontError) {
-          await SplashScreen.hideAsync();
-        }
-      } catch (error) {
-        console.error('Error initializing app:', error);
-        await SplashScreen.hideAsync();
-      }
-    }
-
-    initializeApp();
-  }, [fontsLoaded, fontError]);
-
-  // Return null to keep splash screen visible while fonts load
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
-
-  return (
-    <>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="salary-setup" />
-        <Stack.Screen name="expenses-list" />
-        <Stack.Screen name="expense-details" />
-        <Stack.Screen name="budget-planner" />
-        <Stack.Screen name="reports" />
-        <Stack.Screen name="backup-restore" />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </>
-  );
-}

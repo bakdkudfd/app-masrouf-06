@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
-import { StorageService, Expense } from '@/utils/storage';
+import { DatabaseService, Expense } from '@/utils/database';
 import { ArrowLeft, Search, Filter, Calendar, DollarSign, Trash2 } from 'lucide-react-native';
 import { formatDateArabic, formatDateShort } from '@/utils/dateHelpers';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { EmptyState } from '@/components/EmptyState';
 
 export default function ExpensesListScreen() {
   const colorScheme = useColorScheme();
@@ -22,6 +24,7 @@ export default function ExpensesListScreen() {
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'category'>('date');
@@ -67,12 +70,13 @@ export default function ExpensesListScreen() {
 
   const loadExpenses = async () => {
     try {
-      const userData = await StorageService.getUserData();
-      if (userData) {
-        setExpenses(userData.monthlyExpenses || []);
-      }
+      setLoading(true);
+      const expensesData = await DatabaseService.getExpenses();
+      setExpenses(expensesData);
     } catch (error) {
       console.error('Error loading expenses:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -134,7 +138,7 @@ export default function ExpensesListScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await StorageService.deleteExpense(expenseId);
+              await DatabaseService.deleteExpense(expenseId);
               loadExpenses();
               Alert.alert('تم الحذف', 'تم حذف المصروف بنجاح');
             } catch (error) {
@@ -150,6 +154,10 @@ export default function ExpensesListScreen() {
   const getTotalAmount = () => {
     return filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
   };
+
+  if (loading) {
+    return <LoadingSpinner message="جاري تحميل المصاريف..." />;
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -212,18 +220,16 @@ export default function ExpensesListScreen() {
       {/* Expenses List */}
       <ScrollView style={styles.expensesList} showsVerticalScrollIndicator={false}>
         {filteredExpenses.length === 0 ? (
-          <View style={[styles.emptyState, { backgroundColor: colors.card }]}>
-            <Search size={48} color={colors.textSecondary} />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              {searchQuery || selectedCategory !== 'all' ? 'لا توجد نتائج' : 'لا توجد مصاريف'}
-            </Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-              {searchQuery || selectedCategory !== 'all' 
-                ? 'جرب تغيير معايير البحث أو الفلترة'
-                : 'ابدأ بإضافة مصروف جديد'
-              }
-            </Text>
-          </View>
+          <EmptyState
+            icon={<Search size={48} color={colors.textSecondary} />}
+            title={searchQuery || selectedCategory !== 'all' ? 'لا توجد نتائج' : 'لا توجد مصاريف'}
+            subtitle={searchQuery || selectedCategory !== 'all' 
+              ? 'جرب تغيير معايير البحث أو الفلترة'
+              : 'ابدأ بإضافة مصروف جديد'
+            }
+            actionText={searchQuery || selectedCategory !== 'all' ? undefined : 'إضافة مصروف'}
+            onAction={searchQuery || selectedCategory !== 'all' ? undefined : () => router.push('/add-expense')}
+          />
         ) : (
           filteredExpenses.map((expense) => {
             const moodInfo = moods[expense.mood as keyof typeof moods];

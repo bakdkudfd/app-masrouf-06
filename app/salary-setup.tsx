@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useColorScheme } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DatabaseService } from '@/utils/database';
 import { useRouter } from 'expo-router';
 import { Save, DollarSign, Calendar, ArrowLeft } from 'lucide-react-native';
 
@@ -42,12 +42,9 @@ export default function SalarySetupScreen() {
 
   const checkExistingSalary = async () => {
     try {
-      const userData = await AsyncStorage.getItem('userData');
-      if (userData) {
-        const parsedData = JSON.parse(userData);
-        if (parsedData.salary) {
-          setSalary(parsedData.salary.toString());
-        }
+      const settings = await DatabaseService.getUserSettings();
+      if (settings && settings.salary > 0) {
+        setSalary(settings.salary.toString());
       } else {
         setIsFirstTime(true);
       }
@@ -66,13 +63,10 @@ export default function SalarySetupScreen() {
     }
 
     try {
-      const existingData = await AsyncStorage.getItem('userData');
-      const userData = existingData ? JSON.parse(existingData) : { monthlyExpenses: [] };
-      
-      userData.salary = salaryAmount;
-      userData.salaryDate = new Date().toISOString();
-      
-      await AsyncStorage.setItem('userData', JSON.stringify(userData));
+      await DatabaseService.updateUserSettings({
+        salary: salaryAmount,
+        salary_date: new Date().toISOString(),
+      });
       
       if (isFirstTime) {
         Alert.alert(

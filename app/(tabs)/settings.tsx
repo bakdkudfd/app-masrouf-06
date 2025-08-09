@@ -136,21 +136,7 @@ export default function SettingsScreen() {
 
   const handleExportData = async () => {
     try {
-      const userData = await AsyncStorage.getItem('userData');
-      const goals = await AsyncStorage.getItem('financialGoals');
-      const appSettings = await AsyncStorage.getItem('appSettings');
-      
-      const exportData = {
-        userData: userData ? JSON.parse(userData) : null,
-        goals: goals ? JSON.parse(goals) : [],
-        settings: appSettings ? JSON.parse(appSettings) : {},
-        exportDate: new Date().toISOString(),
-        appVersion: '1.0.0',
-        deviceInfo: {
-          platform: 'mobile',
-          language: 'ar',
-        }
-      };
+      const exportData = await DatabaseService.exportAllData();
 
       const dataString = JSON.stringify(exportData, null, 2);
       
@@ -458,6 +444,37 @@ export default function SettingsScreen() {
             <ChevronRight size={20} color={colors.textSecondary} />
           </TouchableOpacity>
 
+          <TouchableOpacity 
+            style={styles.settingItem} 
+            onPress={() => router.push('/backup-restore')}
+          >
+            <View style={styles.settingLeft}>
+              <Database size={24} color={colors.accent} />
+              <View style={styles.settingTextContainer}>
+                <Text style={[styles.settingLabel, { color: colors.text }]}>النسخ الاحتياطي المتقدم</Text>
+                <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+                  إدارة شاملة للنسخ الاحتياطي
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.settingItem} 
+            onPress={() => router.push('/reports')}
+          >
+            <View style={styles.settingLeft}>
+              <BarChart3 size={24} color={colors.primary} />
+              <View style={styles.settingTextContainer}>
+                <Text style={[styles.settingLabel, { color: colors.text }]}>التقارير المفصلة</Text>
+                <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+                  تحليلات متقدمة للإنفاق
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.settingItem} onPress={handleResetMonth}>
             <View style={styles.settingLeft}>
               <RefreshCw size={24} color={colors.warning} />

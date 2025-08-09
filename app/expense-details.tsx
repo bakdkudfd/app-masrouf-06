@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { StorageService, Expense } from '@/utils/storage';
+import { DatabaseService, Expense } from '@/utils/database';
 import { ArrowLeft, CreditCard as Edit3, Trash2, Save, Calendar, MessageSquare, Hash } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -63,9 +63,8 @@ export default function ExpenseDetailsScreen() {
 
   const loadExpenseDetails = async () => {
     try {
-      const userData = await StorageService.getUserData();
-      if (userData && expenseId) {
-        const foundExpense = userData.monthlyExpenses.find(exp => exp.id === expenseId);
+      if (expenseId) {
+        const foundExpense = await DatabaseService.getExpenseById(expenseId as string);
         if (foundExpense) {
           setExpense(foundExpense);
           setEditedExpense(foundExpense);
@@ -90,7 +89,7 @@ export default function ExpenseDetailsScreen() {
     }
 
     try {
-      await StorageService.updateExpense(expense!.id, {
+      await DatabaseService.updateExpense(expense!.id, {
         ...editedExpense,
         amount,
       });
@@ -115,7 +114,7 @@ export default function ExpenseDetailsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await StorageService.deleteExpense(expense!.id);
+              await DatabaseService.deleteExpense(expense!.id);
               Alert.alert('تم الحذف', 'تم حذف المصروف بنجاح');
               router.back();
             } catch (error) {

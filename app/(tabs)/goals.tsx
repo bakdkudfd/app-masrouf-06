@@ -87,7 +87,7 @@ export default function GoalsScreen() {
     }
   };
 
-  const handleAddGoal = () => {
+  const handleAddGoal = async () => {
     if (!newGoal.title || !newGoal.targetAmount || !newGoal.deadline || !newGoal.category) {
       Alert.alert('خطأ', 'يرجى ملء جميع الحقول المطلوبة');
       return;
